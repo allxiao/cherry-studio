@@ -21,6 +21,7 @@ import { getResourcePath } from './utils'
 import { decrypt } from './utils/aes'
 import { encrypt } from './utils/aes'
 import { compress, decompress } from './utils/zip'
+import { DefaultAzureCredential } from '@azure/identity'
 
 const fileManager = new FileStorage()
 const backupManager = new BackupManager()
@@ -207,4 +208,14 @@ export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
   ipcMain.handle('aes:decrypt', (_, encryptedData: string, iv: string, secretKey: string) =>
     decrypt(encryptedData, iv, secretKey)
   )
+
+  // azure
+  let credential: DefaultAzureCredential | null = null
+  ipcMain.handle('azure:getOpenAiToken', async () => {
+    if (!credential) {
+      credential = new DefaultAzureCredential()
+    }
+    const token = await credential.getToken('https://cognitiveservices.azure.com/.default')
+    return token.token
+  })
 }
