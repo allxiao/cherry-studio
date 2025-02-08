@@ -118,6 +118,9 @@ declare global {
       aes: {
         encrypt: (text: string, secretKey: string, iv: string) => Promise<{ iv: string; encryptedData: string }>
         decrypt: (encryptedData: string, iv: string, secretKey: string) => Promise<string>
+      },
+      azure: {
+        getOpenAiToken: () => Promise<string>
       }
     }
   }

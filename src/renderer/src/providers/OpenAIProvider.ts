@@ -24,12 +24,21 @@ export default class OpenAIProvider extends BaseProvider {
     super(provider)
 
     if (provider.id === 'azure-openai' || provider.type === 'azure-openai') {
-      this.sdk = new AzureOpenAI({
-        dangerouslyAllowBrowser: true,
-        apiKey: this.apiKey,
-        apiVersion: provider.apiVersion,
-        endpoint: provider.apiHost
-      })
+      if (this.apiKey) {
+        this.sdk = new AzureOpenAI({
+          dangerouslyAllowBrowser: true,
+          apiKey: this.apiKey,
+          apiVersion: provider.apiVersion,
+          endpoint: provider.apiHost
+        })
+      } else {
+        this.sdk = new AzureOpenAI({
+          dangerouslyAllowBrowser: true,
+          apiVersion: provider.apiVersion,
+          endpoint: provider.apiHost,
+          azureADTokenProvider: () => window.api.azure.getOpenAiToken()
+        })
+      }
       return
     }
 

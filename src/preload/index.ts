@@ -104,6 +104,9 @@ const api = {
     encrypt: (text: string, secretKey: string, iv: string) => ipcRenderer.invoke('aes:encrypt', text, secretKey, iv),
     decrypt: (encryptedData: string, iv: string, secretKey: string) =>
       ipcRenderer.invoke('aes:decrypt', encryptedData, iv, secretKey)
+  },
+  azure: {
+    getOpenAiToken: () => ipcRenderer.invoke('azure:getOpenAiToken')
   }
 }
 
