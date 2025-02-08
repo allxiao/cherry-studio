@@ -48,6 +48,7 @@
     "check": "node scripts/check-i18n.js"
   },
   "dependencies": {
+    "@azure/identity": "^4.7.0",
     "@electron-toolkit/preload": "^3.0.0",
     "@electron-toolkit/utils": "^3.0.0",
     "@electron/notarize": "^2.5.0",
