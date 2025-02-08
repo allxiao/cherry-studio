@@ -107,6 +107,9 @@ const api = {
   },
   shell: {
     openExternal: shell.openExternal
+  },
+  azure: {
+    getOpenAiToken: () => ipcRenderer.invoke('azure:getOpenAiToken')
   }
 }
 
