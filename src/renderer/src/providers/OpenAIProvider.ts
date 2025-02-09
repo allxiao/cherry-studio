@@ -50,36 +50,57 @@ import BaseProvider from './BaseProvider'
 type ReasoningEffort = 'high' | 'medium' | 'low'
 
 export default class OpenAIProvider extends BaseProvider {
-  private sdk: OpenAI
+  private readonly sdk: () => Promise<OpenAI>
 
   constructor(provider: Provider) {
     super(provider)
 
     if (provider.id === 'azure-openai' || provider.type === 'azure-openai') {
-      if (this.apiKey) {
-        this.sdk = new AzureOpenAI({
-          dangerouslyAllowBrowser: true,
-          apiKey: this.apiKey,
-          apiVersion: provider.apiVersion,
-          endpoint: provider.apiHost
-        })
+      if (provider.apiHost && provider.apiHost.includes('ai.azure.com/models')) {
+        // https://aistudioaiservices692942423096.services.ai.azure.com/models
+        this.sdk = async () => {
+          const token =
+            this.apiKey !== null && this.apiKey !== '' ? this.apiKey : await window.api.azure.getOpenAiToken()
+          return new OpenAI({
+            dangerouslyAllowBrowser: true,
+            apiKey: token,
+            baseURL: this.getBaseURL(),
+            defaultHeaders: this.defaultHeaders()
+          })
+        }
+      } else if (this.apiKey) {
+        this.sdk = () =>
+          Promise.resolve(
+            new AzureOpenAI({
+              dangerouslyAllowBrowser: true,
+              apiKey: this.apiKey,
+              apiVersion: provider.apiVersion,
+              endpoint: provider.apiHost
+            })
+          )
       } else {
-        this.sdk = new AzureOpenAI({
-          dangerouslyAllowBrowser: true,
-          apiVersion: provider.apiVersion,
-          endpoint: provider.apiHost,
-          azureADTokenProvider: () => window.api.azure.getOpenAiToken()
-        })
+        this.sdk = () =>
+          Promise.resolve(
+            new AzureOpenAI({
+              dangerouslyAllowBrowser: true,
+              apiVersion: provider.apiVersion,
+              endpoint: provider.apiHost,
+              azureADTokenProvider: () => window.api.azure.getOpenAiToken()
+            })
+          )
       }
       return
     }
 
-    this.sdk = new OpenAI({
-      dangerouslyAllowBrowser: true,
-      apiKey: this.apiKey,
-      baseURL: this.getBaseURL(),
-      defaultHeaders: this.defaultHeaders()
-    })
+    this.sdk = () =>
+      Promise.resolve(
+        new OpenAI({
+          dangerouslyAllowBrowser: true,
+          apiKey: this.apiKey,
+          baseURL: this.getBaseURL(),
+          defaultHeaders: this.defaultHeaders()
+        })
+      )
   }
 
   /**
@@ -568,7 +589,8 @@ export default class OpenAIProvider extends BaseProvider {
               onChunk
             )
           }
-          const newStream = await this.sdk.chat.completions
+          const sdk = await this.sdk()
+          const newStream = await sdk.chat.completions
             // @ts-ignore key is not typed
             .create(
               {
@@ -608,7 +630,8 @@ export default class OpenAIProvider extends BaseProvider {
       }
     }
 
-    const stream = await this.sdk.chat.completions
+    const sdk = await this.sdk()
+    const stream = await sdk.chat.completions
       // @ts-ignore key is not typed
       .create(
         {
@@ -766,7 +789,8 @@ export default class OpenAIProvider extends BaseProvider {
   public async generateText({ prompt, content }: { prompt: string; content: string }): Promise<string> {
     const model = getDefaultModel()
 
-    const response = await this.sdk.chat.completions.create({
+    const sdk = await this.sdk()
+    const response = await sdk.chat.completions.create({
       model: model.id,
       stream: false,
       messages: [
@@ -791,7 +815,8 @@ export default class OpenAIProvider extends BaseProvider {
       return []
     }
 
-    const response: any = await this.sdk.request({
+    const sdk = await this.sdk()
+    const response: any = await sdk.request({
       method: 'post',
       path: '/advice_questions',
       body: {
@@ -823,7 +848,8 @@ export default class OpenAIProvider extends BaseProvider {
     }
 
     try {
-      const response = await this.sdk.chat.completions.create(body as ChatCompletionCreateParamsNonStreaming)
+      const sdk = await this.sdk()
+      const response = await sdk.chat.completions.create(body as ChatCompletionCreateParamsNonStreaming)
 
       return {
         valid: Boolean(response?.choices[0].message),
@@ -843,7 +869,8 @@ export default class OpenAIProvider extends BaseProvider {
    */
   public async models(): Promise<OpenAI.Models.Model[]> {
     try {
-      const response = await this.sdk.models.list()
+      const sdk = await this.sdk()
+      const response = await sdk.models.list()
 
       if (this.provider.id === 'github') {
         // @ts-ignore key is not typed
@@ -894,7 +921,8 @@ export default class OpenAIProvider extends BaseProvider {
     signal,
     promptEnhancement
   }: GenerateImageParams): Promise<string[]> {
-    const response = (await this.sdk.request({
+    const sdk = await this.sdk()
+    const response = (await sdk.request({
       method: 'post',
       path: '/images/generations',
       signal,
@@ -920,7 +948,8 @@ export default class OpenAIProvider extends BaseProvider {
    * @returns The embedding dimensions
    */
   public async getEmbeddingDimensions(model: Model): Promise<number> {
-    const data = await this.sdk.embeddings.create({
+    const sdk = await this.sdk()
+    const data = await sdk.embeddings.create({
       model: model.id,
       input: model?.provider === 'baidu-cloud' ? ['hi'] : 'hi'
     })
