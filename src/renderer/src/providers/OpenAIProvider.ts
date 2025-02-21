@@ -281,7 +281,6 @@ export default class OpenAIProvider extends BaseProvider {
 
       const delta = chunk.choices[0]?.delta
 
-      // @ts-expect-error `reasoning_content` not supported by OpenAI for now
       if (delta?.reasoning_content) {
         hasReasoningContent = true
       }
