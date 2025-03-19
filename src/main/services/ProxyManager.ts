@@ -12,7 +12,7 @@ export interface ProxyConfig {
 
 export class ProxyManager {
   private config: ProxyConfig
-  private proxyAgent: HttpsProxyAgent | null = null
+  private proxyAgent: HttpsProxyAgent<string> | null = null
   private proxyUrl: string | null = null
   private systemProxyInterval: NodeJS.Timeout | null = null
 
@@ -128,7 +128,7 @@ export class ProxyManager {
     }
   }
 
-  getProxyAgent(): HttpsProxyAgent | null {
+  getProxyAgent(): HttpsProxyAgent<string> | null {
     return this.proxyAgent
   }
 
