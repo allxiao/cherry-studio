@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag (e.g. v1.0.0)'
+        description: "Release tag (e.g. v1.0.0)"
         required: true
-        default: 'v0.9.18'
+        default: "v0.9.18"
   push:
     tags:
       - v*.*.*
@@ -20,7 +20,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
+        os: [windows-latest]
       fail-fast: false
 
     steps:
@@ -103,5 +103,5 @@ jobs:
           allowUpdates: true
           makeLatest: false
           tag: ${{ steps.get-tag.outputs.tag }}
-          artifacts: 'dist/*.exe,dist/*.zip,dist/*.dmg,dist/*.AppImage,dist/*.snap,dist/*.deb,dist/*.rpm,dist/*.tar.gz,dist/latest*.yml,dist/*.blockmap'
+          artifacts: "dist/*.exe,dist/*.zip,dist/*.dmg,dist/*.AppImage,dist/*.snap,dist/*.deb,dist/*.rpm,dist/*.tar.gz,dist/latest*.yml,dist/*.blockmap"
           token: ${{ secrets.GITHUB_TOKEN }}
