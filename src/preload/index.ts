@@ -162,6 +162,10 @@ const api = {
     decryptToken: (token: string) => ipcRenderer.invoke('nutstore:decrypt-token', token),
     getDirectoryContents: (token: string, path: string) =>
       ipcRenderer.invoke('nutstore:get-directory-contents', token, path)
+  },
+
+  azure: {
+    getOpenAiToken: () => ipcRenderer.invoke('azure:getOpenAiToken')
   }
 }
 
