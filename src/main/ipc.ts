@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import { arch } from 'node:os'
 
 import { isMac, isWin } from '@main/constant'
+import { DefaultAzureCredential } from '@azure/identity'
 import { getBinaryPath, isBinaryExists, runInstallScript } from '@main/utils/process'
 import { IpcChannel } from '@shared/IpcChannel'
 import { Shortcut, ThemeMode } from '@types'
@@ -297,6 +298,16 @@ export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
   ipcMain.handle(IpcChannel.App_GetBinaryPath, (_, name: string) => getBinaryPath(name))
   ipcMain.handle(IpcChannel.App_InstallUvBinary, () => runInstallScript('install-uv.js'))
   ipcMain.handle(IpcChannel.App_InstallBunBinary, () => runInstallScript('install-bun.js'))
+
+  // azure
+  let credential: DefaultAzureCredential | null = null
+  ipcMain.handle('azure:getOpenAiToken', async () => {
+    if (!credential) {
+      credential = new DefaultAzureCredential()
+    }
+    const token = await credential.getToken('https://cognitiveservices.azure.com/.default')
+    return token.token
+  })
 
   //copilot
   ipcMain.handle(IpcChannel.Copilot_GetAuthMessage, CopilotService.getAuthMessage)

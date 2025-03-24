@@ -185,6 +185,10 @@ const api = {
     openSearchWindow: (uid: string) => ipcRenderer.invoke(IpcChannel.SearchWindow_Open, uid),
     closeSearchWindow: (uid: string) => ipcRenderer.invoke(IpcChannel.SearchWindow_Close, uid),
     openUrlInSearchWindow: (uid: string, url: string) => ipcRenderer.invoke(IpcChannel.SearchWindow_OpenUrl, uid, url)
+  },
+
+  azure: {
+    getOpenAiToken: () => ipcRenderer.invoke('azure:getOpenAiToken')
   }
 }
 
