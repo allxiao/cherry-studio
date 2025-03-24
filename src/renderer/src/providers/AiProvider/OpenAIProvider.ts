@@ -54,22 +54,47 @@ import BaseProvider from './BaseProvider'
 type ReasoningEffort = 'high' | 'medium' | 'low'
 
 export default class OpenAIProvider extends BaseProvider {
-  private sdk: OpenAI
+  private readonly sdk: () => Promise<OpenAI>
 
   constructor(provider: Provider) {
     super(provider)
 
     if (provider.id === 'azure-openai' || provider.type === 'azure-openai') {
-      this.sdk = new AzureOpenAI({
-        dangerouslyAllowBrowser: true,
-        apiKey: this.apiKey,
-        apiVersion: provider.apiVersion,
-        endpoint: provider.apiHost
-      })
+      if (provider.apiHost && provider.apiHost.includes('ai.azure.com/models')) {
+        // https://aistudioaiservices692942423096.services.ai.azure.com/models
+        const openAi = new OpenAI({
+          dangerouslyAllowBrowser: true,
+          apiKey: this.apiKey,
+          baseURL: this.getBaseURL(),
+          defaultHeaders: this.defaultHeaders()
+        })
+
+        this.sdk = async () => {
+          openAi.apiKey =
+            this.apiKey !== null && this.apiKey !== '' ? this.apiKey : await window.api.azure.getOpenAiToken()
+          return openAi
+        }
+      } else if (this.apiKey) {
+        const azureOpenAi = new AzureOpenAI({
+          dangerouslyAllowBrowser: true,
+          apiKey: this.apiKey,
+          apiVersion: provider.apiVersion,
+          endpoint: provider.apiHost
+        })
+        this.sdk = () => Promise.resolve(azureOpenAi)
+      } else {
+        const azureOpenAi = new AzureOpenAI({
+          dangerouslyAllowBrowser: true,
+          apiVersion: provider.apiVersion,
+          endpoint: provider.apiHost,
+          azureADTokenProvider: () => window.api.azure.getOpenAiToken()
+        })
+        this.sdk = () => Promise.resolve(azureOpenAi)
+      }
       return
     }
 
-    this.sdk = new OpenAI({
+    const openAi = new OpenAI({
       dangerouslyAllowBrowser: true,
       apiKey: this.apiKey,
       baseURL: this.getBaseURL(),
@@ -78,6 +103,20 @@ export default class OpenAIProvider extends BaseProvider {
         ...(this.provider.id === 'copilot' ? { 'editor-version': 'vscode/1.97.2' } : {})
       }
     })
+
+    this.sdk = async () => {
+      let apiKey = this.apiKey
+      if (this.provider.id === 'copilot') {
+        const defaultHeaders = store.getState().copilot.defaultHeaders
+        // copilot每次请求前需要重新获取token，因为token中附带时间戳
+        const { token } = await window.api.copilot.getToken(defaultHeaders)
+        apiKey = token
+      }
+
+      openAi.apiKey = apiKey
+
+      return openAi
+    }
   }
 
   /**
@@ -427,7 +466,6 @@ export default class OpenAIProvider extends BaseProvider {
     const lastUserMessage = _messages.findLast((m) => m.role === 'user')
     const { abortController, cleanup, signalPromise } = this.createAbortController(lastUserMessage?.id, true)
     const { signal } = abortController
-    await this.checkIsCopilot()
 
     const tools = mcpTools && mcpTools.length > 0 ? mcpToolsToOpenAITools(mcpTools) : undefined
 
@@ -582,7 +620,8 @@ export default class OpenAIProvider extends BaseProvider {
               onChunk
             )
           }
-          const newStream = await this.sdk.chat.completions
+          const sdk = await this.sdk()
+          const newStream = await sdk.chat.completions
             // @ts-ignore key is not typed
             .create(
               {
@@ -623,7 +662,9 @@ export default class OpenAIProvider extends BaseProvider {
         })
       }
     }
-    const stream = await this.sdk.chat.completions
+
+    const sdk = await this.sdk()
+    const stream = await sdk.chat.completions
       // @ts-ignore key is not typed
       .create(
         {
@@ -682,8 +723,6 @@ export default class OpenAIProvider extends BaseProvider {
     }
 
     const stream = isSupportedStreamOutput()
-
-    await this.checkIsCopilot()
 
     // @ts-ignore key is not typed
     const response = await this.sdk.chat.completions.create({
@@ -758,8 +797,6 @@ export default class OpenAIProvider extends BaseProvider {
       content: userMessageContent
     }
 
-    await this.checkIsCopilot()
-
     // @ts-ignore key is not typed
     const response = await this.sdk.chat.completions.create({
       model: model.id,
@@ -824,9 +861,8 @@ export default class OpenAIProvider extends BaseProvider {
   public async generateText({ prompt, content }: { prompt: string; content: string }): Promise<string> {
     const model = getDefaultModel()
 
-    await this.checkIsCopilot()
-
-    const response = await this.sdk.chat.completions.create({
+    const sdk = await this.sdk()
+    const response = await sdk.chat.completions.create({
       model: model.id,
       stream: false,
       messages: [
@@ -851,9 +887,8 @@ export default class OpenAIProvider extends BaseProvider {
       return []
     }
 
-    await this.checkIsCopilot()
-
-    const response: any = await this.sdk.request({
+    const sdk = await this.sdk()
+    const response: any = await sdk.request({
       method: 'post',
       path: '/advice_questions',
       body: {
@@ -884,8 +919,8 @@ export default class OpenAIProvider extends BaseProvider {
     }
 
     try {
-      await this.checkIsCopilot()
-      const response = await this.sdk.chat.completions.create(body as ChatCompletionCreateParamsNonStreaming)
+      const sdk = await this.sdk()
+      const response = await sdk.chat.completions.create(body as ChatCompletionCreateParamsNonStreaming)
 
       return {
         valid: Boolean(response?.choices[0].message),
@@ -905,9 +940,8 @@ export default class OpenAIProvider extends BaseProvider {
    */
   public async models(): Promise<OpenAI.Models.Model[]> {
     try {
-      await this.checkIsCopilot()
-
-      const response = await this.sdk.models.list()
+      const sdk = await this.sdk()
+      const response = await sdk.models.list()
 
       if (this.provider.id === 'github') {
         // @ts-ignore key is not typed
@@ -958,7 +992,8 @@ export default class OpenAIProvider extends BaseProvider {
     signal,
     promptEnhancement
   }: GenerateImageParams): Promise<string[]> {
-    const response = (await this.sdk.request({
+    const sdk = await this.sdk()
+    const response = (await sdk.request({
       method: 'post',
       path: '/images/generations',
       signal,
@@ -984,20 +1019,11 @@ export default class OpenAIProvider extends BaseProvider {
    * @returns The embedding dimensions
    */
   public async getEmbeddingDimensions(model: Model): Promise<number> {
-    await this.checkIsCopilot()
-
-    const data = await this.sdk.embeddings.create({
+    const sdk = await this.sdk()
+    const data = await sdk.embeddings.create({
       model: model.id,
       input: model?.provider === 'baidu-cloud' ? ['hi'] : 'hi'
     })
     return data.data[0].embedding.length
-  }
-
-  public async checkIsCopilot() {
-    if (this.provider.id !== 'copilot') return
-    const defaultHeaders = store.getState().copilot.defaultHeaders
-    // copilot每次请求前需要重新获取token，因为token中附带时间戳
-    const { token } = await window.api.copilot.getToken(defaultHeaders)
-    this.sdk.apiKey = token
   }
 }
