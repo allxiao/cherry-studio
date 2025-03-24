@@ -169,6 +169,10 @@ const api = {
     decryptToken: (token: string) => ipcRenderer.invoke(IpcChannel.Nutstore_DecryptToken, token),
     getDirectoryContents: (token: string, path: string) =>
       ipcRenderer.invoke(IpcChannel.Nutstore_GetDirectoryContents, token, path)
+  },
+
+  azure: {
+    getOpenAiToken: () => ipcRenderer.invoke('azure:getOpenAiToken')
   }
 }
 
