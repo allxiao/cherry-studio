@@ -50,6 +50,7 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@azure/identity": "^4.8.0",
     "@electron-toolkit/utils": "^3.0.0",
     "@electron/notarize": "^2.5.0",
     "@google/generative-ai": "^0.21.0",

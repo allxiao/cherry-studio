@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 
 import { isMac, isWin } from '@main/constant'
+import { DefaultAzureCredential } from '@azure/identity'
 import { getBinaryPath, isBinaryExists, runInstallScript } from '@main/utils/process'
 import { MCPServer, Shortcut, ThemeMode } from '@types'
 import { BrowserWindow, ipcMain, session, shell } from 'electron'
@@ -281,6 +282,16 @@ export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
   ipcMain.handle('app:get-binary-path', (_, name: string) => getBinaryPath(name))
   ipcMain.handle('app:install-uv-binary', () => runInstallScript('install-uv.js'))
   ipcMain.handle('app:install-bun-binary', () => runInstallScript('install-bun.js'))
+
+  // azure
+  let credential: DefaultAzureCredential | null = null
+  ipcMain.handle('azure:getOpenAiToken', async () => {
+    if (!credential) {
+      credential = new DefaultAzureCredential()
+    }
+    const token = await credential.getToken('https://cognitiveservices.azure.com/.default')
+    return token.token
+  })
 
   // Listen for changes in MCP servers and notify renderer
   mcpService.on('servers-updated', (servers) => {
